@@ -1,0 +1,177 @@
+{%- liquid
+  if section.settings.enable_carousel
+    assign product_limit = 20
+  else
+    assign product_limit = section.settings.grid | times: section.settings.rows
+  endif
+-%}
+
+<div class="section-id-{{ section.id }} collection-slider-row {% if section.settings.use_alt_bg %}use-alt-bg{% endif %}" data-section-type="featured-collection" data-components="accordion,modal,price-range">
+<div class="product-recommendations"
+    data-section-id="{{ section.id }}"
+    data-url="{{ routes.product_recommendations_url }}?section_id={{ section.id }}&limit={{ section.settings.grid }}&product_id={{ product.id }}"
+    data-components="accordion,modal"
+    data-cc-animate>
+
+{% if recommendations.performed and recommendations.products_count > 0 %}
+  <div class="container{% if section.settings.enable_carousel %} container--not-mobile{% endif %}{% if section.settings.full_width %} container--no-max{% endif %}">
+    <div class="{% if section.settings.enable_carousel %}collection-slider featured-products-slider{% endif %}">
+      <div class="featured-collection-carousel-heading-wrapper">
+        <h2 class="hometitle h4-style align-center has-paging" data-cc-animate data-cc-animate-delay="0.3s">
+          <a class="has-paging__title" href="{{ collection.url }}"><span>{{ section.settings.title | escape }}</span></a>
+        </h2>
+        <div class="featured-collection-carousel-arrows-wrapper">
+          {% if section.settings.enable_carousel %}<a class="prev ltr-icon" href="#">{% render 'circle-arrow-left' %}</a>{% endif %}
+          {% if section.settings.enable_carousel %}<a class="next ltr-icon" href="#">{% render 'circle-arrow-right' %}</a>{% endif %}
+        </div>
+      </div>
+
+      <div class="collection-listing" data-cc-animate="cc-fade-in-up">
+        <div class="product-list product-list--per-row-{{ section.settings.grid }} product-list--per-row-mob-{{ settings.prod_thumb_mob_per_row }} product-list--image-shape-{{ settings.prod_thumb_shape }} {% if section.settings.enable_carousel %}carousel{% endif %}">
+          {%- liquid
+            if settings.prod_thumb_shape == 'portrait-23'
+              assign chosen_aspect_ratio = 0.67
+            elsif settings.prod_thumb_shape == 'portrait-45'
+              assign chosen_aspect_ratio = 0.8
+            elsif settings.prod_thumb_shape == 'square'
+              assign chosen_aspect_ratio = 1.0
+            elsif settings.prod_thumb_shape == 'landscape-54'
+              assign chosen_aspect_ratio = 1.25
+            elsif settings.prod_thumb_shape == 'landscape-32'
+              assign chosen_aspect_ratio = 1.50
+            elsif settings.prod_thumb_shape == 'tallest'
+              assign chosen_aspect_ratio = 99
+              for product in recommendations.products
+                if product.featured_media.preview_image.aspect_ratio < chosen_aspect_ratio
+                  assign chosen_aspect_ratio = product.featured_media.preview_image.aspect_ratio
+                endif
+              endfor
+            else
+              assign chosen_aspect_ratio = 0
+              for product in recommendations.products
+                if product.featured_media.preview_image.aspect_ratio > chosen_aspect_ratio
+                  assign chosen_aspect_ratio = product.featured_media.preview_image.aspect_ratio
+                endif
+              endfor
+            endif
+          -%}
+          {%- for product in recommendations.products -%}
+            {% render 'product-block', product: product, custom_aspect_ratio: chosen_aspect_ratio %}
+          {%- endfor -%}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endif %}
+
+  {% if settings.quickbuy_style != 'off' and section.settings.enable_carousel %}
+    <div class="quickbuy-container">
+      <a href="#" class="close-detail" aria-label="{{ 'products.quick_buy.close' | t }}" tabindex="-1">{% render 'svg-x' %}</a>
+      <div class="inner"></div>
+    </div>
+  {% endif %}
+</div>
+</div>
+{% javascript %}
+var loadProductRecommendationsIntoSection = function() {
+  // Look for an element with class 'product-recommendations'
+  var productRecommendationsSection = document.querySelector(".product-recommendations");
+  if (productRecommendationsSection === null) { return; }
+  // Create request and submit it using Ajax
+  var request = new XMLHttpRequest();
+  request.open("GET", productRecommendationsSection.dataset.url);
+  request.onload = function() {
+    if (request.status >= 200 && request.status < 300) {
+      var container = document.createElement("div");
+      container.innerHTML = request.response;
+      productRecommendationsSection.innerHTML = container.querySelector(".product-recommendations").innerHTML;
+      theme.ProductBlockManager.loadImages(productRecommendationsSection);
+      theme.initAnimateOnScroll();
+      $(".product-recommendations .show-12-more").click(function(){
+        $(this).parent().toggleClass("result_hover");
+      });
+    }
+  };
+  request.send();
+};
+// fetch when section reloads in editor
+document.addEventListener("shopify:section:load", function(event) {
+  if (document.querySelector('[data-section-id="' + event.detail.sectionId + '"].product-recommendations')) {
+    loadProductRecommendationsIntoSection();
+  }
+});
+// Fetching the recommendations on page load
+loadProductRecommendationsIntoSection();
+{% endjavascript %}
+
+{% schema %}
+  {
+    "name": "Product Recomendation",
+    "class": "section-product-recomendation",
+    "settings": [
+      {
+        "type": "text",
+        "id": "title",
+        "label": "Heading",
+        "default": "Product Recomendation"
+      },
+      {
+        "type": "checkbox",
+        "id": "show_vendor",
+        "label": "Show product vendor",
+        "default": false
+      },
+      {
+        "type": "checkbox",
+        "id": "enable_carousel",
+        "label": "Enable carousel",
+        "default": true
+      },
+      {
+        "type": "range",
+        "id": "grid",
+        "label": "Products per row",
+        "min": 2,
+        "max": 5,
+        "step": 1,
+        "default": 4
+      },
+      {
+        "type": "range",
+        "id": "rows",
+        "label": "Rows",
+        "info": "Does not apply to carousel layout",
+        "min": 1,
+        "max": 5,
+        "step": 1,
+        "default": 1
+      },
+      {
+        "type": "checkbox",
+        "id": "use_alt_bg",
+        "label": "Use alternate section color",
+        "default": true
+      },
+      {
+        "type": "checkbox",
+        "id": "show_view_all",
+        "label": "Show 'View all' link",
+        "default": true
+      },
+      {
+        "id": "full_width",
+        "type": "checkbox",
+        "label": "Full page width",
+        "default": true
+      }
+    ],
+    "presets": [
+      {
+        "name": "Product Recomendation",
+        "settings": {
+          "title": "Product Recomendation"
+        }
+      }
+    ]
+  }
+{% endschema %}
